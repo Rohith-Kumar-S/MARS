@@ -50,32 +50,40 @@ Genres : {", ".join(data['genres'])}"""
             )
             embedding = np.array([res.json()['embedding']], dtype='float32')
             D, I = vector_store.search(embedding, n)
-            similarity = 1-(D/np.linalg.norm(D))
-            print(f"Similarity scores: {similarity}")
-            print(f"Indices: {I.flatten()}")
+            similarity = (1/(1+D))
+            # print(f"Similarity scores: {similarity}")
+            # print(f"Indices: {I.flatten()}")
             return zip(np.array(movies_df_cache['imdbId'])[I.flatten()], similarity[0])
         else:
             return []
+        
+    def movies_watched(self, user_data):
+        movies_watched = set()
+        for v in user_data.values():
+            movies_watched.add(v['imdbId'])
+        return movies_watched
 
     def get_user_recommendations_content_based(self):
         # Get movies the user has rated highly (e.g., >= 4 stars)
         user_movies = self.get_user_rated_movies(min_rating=4.0)
-
+        movies_watched = self.movies_watched(self.user_data)
+        print('movies_watched:', movies_watched)
         # For each movie they liked, find similar movies
         similar_movies = {}
+        similar = []
         for movie_id, rating in user_movies:
             # Your existing content-based function
-            similar = self.fetch_similar_movies(movie_id, self.vector_store, self.movies_df, n=20)
-        print("Movies similar: ",movie_id, similar)
+            similar.extend(self.fetch_similar_movies(movie_id, self.vector_store, self.movies_df, n=5))
         # Weight by user's rating for that movie
+        print('movieId: ', movie_id)
+        print(similar)
         for sim_movie, similarity_score in similar:
-            if movie_id==sim_movie:
+            if sim_movie in movies_watched:
                 continue
             weighted_score = similarity_score * (rating / 5.0)
             if not similar_movies.get(sim_movie, False):
                 similar_movies[sim_movie] = []
             similar_movies[sim_movie].append(weighted_score)
-    
         # Average or max scores for each movie
         final_scores = {
             movie_id: np.mean(scores)  # or max(scores)
@@ -89,6 +97,7 @@ Genres : {", ".join(data['genres'])}"""
         print('Loading recommendations...')
         # 1. Get candidate movies from content-based
         cb_recommendations = self.get_user_recommendations_content_based()
+        print('cb recom: ', cb_recommendations)
         cb_movie_ids = [movie_id for movie_id, _ in cb_recommendations[:50]]
         
         # 2. Get CF predictions for those candidates + popular movies

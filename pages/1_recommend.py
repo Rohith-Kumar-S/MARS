@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
-from services.recommender_utils import MovieRecommender
+from services.recommender_utils import MovieRecommender 
 import time
 import os
 
@@ -65,7 +65,7 @@ st.markdown("""
 def fetch_movie(title_id):
     """Fetch movie data from IMDB API with caching"""
     if title_id in st.session_state.movie_cache:
-        print('Fetching from cache')
+        # print('Fetching from cache')
         return st.session_state.movie_cache[title_id]
     
     try:
@@ -75,10 +75,10 @@ def fetch_movie(title_id):
             st.session_state.movie_cache[title_id] = movie_data
             return movie_data
         else:
-            print(f"Error fetching movie {title_id} else: {response.status_code}")
+            # print(f"Error fetching movie {title_id} else: {response.status_code}")
             return None
     except Exception as e:
-        print(f"Error fetching movie {title_id} exp: {str(e)}")
+        # print(f"Error fetching movie {title_id} exp: {str(e)}")
         st.error(f"Error fetching movie {title_id}: {str(e)}")
         return None
 
@@ -116,9 +116,8 @@ def fetch_similar_movies(fav_movie):
     )
     embedding = np.array([res.json()['embedding']], dtype='float32')
     D, I = st.session_state.vector_store.search(embedding, 5)
-    similarity = 1-(D/np.linalg.norm(D))
-    print(f"Similarity scores: {similarity}")
-    print(f"Indices: {I.flatten()}")
+    # print(f"Similarity scores: {similarity}")
+    # print(f"Indices: {I.flatten()}")
     return np.array(st.session_state.movies_df_cache['imdbId'])[I.flatten()]
 
 def fetch_movie_id(imdb_id):
@@ -436,10 +435,12 @@ def main():
     print(sample_movie_ids)
 
     if st.session_state.request_recommendations and len(st.session_state.user_data.keys()) > 0:
+        start_time = time.time()
         recommender = MovieRecommender(st.session_state.ratings_df_cache, st.session_state.user_data, st.session_state.vector_store, st.session_state.movies_df_cache)
         st.session_state.recommended_ids = recommender.get_hybrid_recommendations(st.session_state.user_id, alpha=0.7, n=20)
         print('recommendations generated: ', st.session_state.recommended_ids)
         st.session_state.request_recommendations = False
+        print(f"Time taken for recommendations: {time.time() - start_time:.2f} seconds")
 
     # Sidebar for search and recommendations
     with st.sidebar:
