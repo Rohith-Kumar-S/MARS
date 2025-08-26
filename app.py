@@ -11,7 +11,6 @@ import onnxruntime as ort
 import random
 
 st.set_page_config(page_title="Movie Recommender", layout="wide")
-print("Available secrets:", list(st.secrets.keys()))
 # Initialize session state
 if 'ratings' not in st.session_state:
     st.session_state.ratings = {}
