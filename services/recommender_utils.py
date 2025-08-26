@@ -73,7 +73,7 @@ class MovieRecommender:
         similar = []
         for movie_id, rating in user_movies:
             # Your existing content-based function
-            similar.extend(self.fetch_similar_movies(movie_id, n=30//len(user_movies)))
+            similar.extend(self.fetch_similar_movies(movie_id, n=20//len(user_movies)))
         # Weight by user's rating for that movie
         for sim_movie, similarity_score in similar:
             if sim_movie in movies_watched:
@@ -100,7 +100,7 @@ class MovieRecommender:
         # 1. Get candidate movies from content-based
         cb_recommendations = self.get_user_recommendations_content_based()
         
-        cb_movie_ids = [movie_id for movie_id, _ in cb_recommendations[:30]]
+        cb_movie_ids = [movie_id for movie_id, _ in cb_recommendations[:20]]
         # 2. Get CF predictions for those candidates + popular movies
         candidate_pool = cb_movie_ids 
         candidate_pool = list(set(candidate_pool))  # Remove duplicates
@@ -126,5 +126,4 @@ class MovieRecommender:
             if final_score:
                 hybrid_scores.append((movie_id, final_score))
         rec_movies = sorted(hybrid_scores, key=lambda x: x[1], reverse=True)[:n]
-        
         return [m[0] for m in rec_movies]

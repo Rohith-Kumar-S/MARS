@@ -134,13 +134,16 @@ def get_movie_embedding(movie_data, model):
     st.session_state.embeddings_cache[movie_id] = embedding
     return embedding
 
-def fetch_similar_movies(movie_index):
+def fetch_similar_movies(movie_index, imdbId):
     embedding = st.session_state.embeddings[movie_index]
     results = st.session_state.vector_store.query(
         vector=embedding.tolist(),
         top_k=10
     )
-    match_ids = {match['id'] for match in results['matches']}
+    match_ids = set()
+    for match in results['matches']:
+        if match['id'] != imdbId:
+            match_ids.add(match['id'])
     return list(match_ids)
 
 # def fetch_movie_id(imdb_id):
@@ -244,7 +247,7 @@ def create_carousel(movies, carousel_key, movies_per_view=5):
                     on_click=lambda a=current_index_key, b=max(0, current_page - 1): update_click(a,b),
                     help="Previous movies"):
             st.session_state.show_rating_dialog = False
-            st.rerun()
+            # st.rerun()
            
     # Right arrow
     with nav_col3:
@@ -253,7 +256,7 @@ def create_carousel(movies, carousel_key, movies_per_view=5):
                     on_click=lambda a=current_index_key, b=min(total_pages - 1, current_page + 1): update_click(a,b),
                     help="Next movies"):
             st.session_state.show_rating_dialog = False
-            st.rerun()
+            # st.rerun()
 
     # # Page indicator
     # with nav_col2:
@@ -310,7 +313,7 @@ def show_rating_dialog():
         matches = st.session_state.movies_df_cache.loc[st.session_state.movies_df_cache['imdbId']==id]
         similar_movies = []
         if len(matches)>0:
-            similar_movies = fetch_similar_movies(matches.index[0])
+            similar_movies = fetch_similar_movies(matches.index[0], id)
         
         @st.dialog(f"Rate {movie['primaryTitle']}")
         def rating_dialog():
@@ -333,11 +336,11 @@ def show_rating_dialog():
                 st.write(f"**{movie['primaryTitle']}**")
                 
                 if movie.get('startYear'):
-                    st.write(f"📅 Year: {movie['startYear']}")
+                    st.write(f"Year: {movie['startYear']}")
                 
                 if movie.get('genres'):
-                    st.write(f"🎭 Genres: {', '.join(movie['genres'])}")
-                
+                    st.write(f"Genres: {', '.join(movie['genres'])}")
+
                 if movie.get('plot'):
                     st.write("**Plot:**")
                     st.write(movie['plot'])
@@ -346,7 +349,7 @@ def show_rating_dialog():
             
             # Rating slider with visual stars
             st.write("**Your Rating:**")
-            rating = st.slider("", 1.0, 5.0, 0.0, label_visibility="collapsed", key="rating_slider")
+            rating = st.slider("blah ", 1.0, 5.0, 0.0, label_visibility="collapsed", key="rating_slider")
             
             col1, col2 = st.columns(2)
             with col1:
@@ -355,16 +358,14 @@ def show_rating_dialog():
                     st.session_state.show_rating_dialog = False
                     st.session_state.request_recommendations = True
                     st.success(f"Rated {rating}/5 ⭐")
-                    st.rerun()
             
             with col2:
                 if st.button("Cancel", use_container_width=True):
                     st.session_state.show_rating_dialog = False
-                    st.session_state.rating_slider = 0
                     st.rerun()
-                    
+
             if similar_movies is not None:
-                st.write("**Similar Movies**")
+                st.write("**More like this**")
                 # Create navigation for similar movies carousel
                 if 'dialog_carousel_index' not in st.session_state:
                     st.session_state.dialog_carousel_index = 0
@@ -375,7 +376,7 @@ def show_rating_dialog():
                 current_page = st.session_state.dialog_carousel_index
                 
                 # Navigation buttons
-                nav_col1, nav_col2, nav_col3 = st.columns([1, 3, 1])
+                nav_col1, nav_col2, nav_col3 = st.columns([1, 7, 1])
                 
                 with nav_col1:
                     if st.button("◀", key="dialog_left", disabled=(current_page == 0)):
@@ -452,7 +453,7 @@ def load_data():
     with open("data/movie_label_encoder.pkl", "rb") as f:
         lbl_movie = pickle.load(f)
     onnx_session = ort.InferenceSession("data/mars_mov_quantized1.onnx")
-    pc = Pinecone(api_key="pcsk_74k399_TT9sjm5THx4nEak9GGTqnZp5zicVcLj8n7K4sBJSeS3uxsucyYiLNLt7SFoTMbw")
+    pc = Pinecone(api_key=st.secrets["PINECONE_API_KEY"])
     vector_store = pc.Index("phantom-recom-light")
     return movies, ratings_df, embeddings, lbl_movie, onnx_session, vector_store
 
@@ -484,14 +485,14 @@ def main():
         st.session_state.onnx_session = onnx_session
         st.session_state.vector_store = vector_store
         st.session_state.data_loaded = True
+        st.session_state.popular_movies = list(get_popular_movies(n=20)['imdbId'].astype(str))
         
     if st.session_state.popular_movies is None:
-        st.session_state.popular_movies = get_popular_movies(n=30)
-    top_movies = list(st.session_state.popular_movies['imdbId'].astype(str))
-    
-    
+        st.session_state.popular_movies = list(get_popular_movies(n=20)['imdbId'].astype(str))
+
+    top_movies = st.session_state.popular_movies
+
     if st.session_state.request_recommendations and len(st.session_state.user_data.keys()) > 0:
-        start_time = time.time()
         recommender = MovieRecommender(st.session_state.ratings_df_cache, st.session_state.embeddings, st.session_state.user_data, st.session_state.vector_store, st.session_state.movies_df_cache, st.session_state.lbl_movie, st.session_state.onnx_session)
         st.session_state.recommended_ids = recommender.get_hybrid_recommendations(st.session_state.user_id, alpha=0.3, n=30)
         st.session_state.request_recommendations = False
