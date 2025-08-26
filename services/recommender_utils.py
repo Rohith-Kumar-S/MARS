@@ -20,9 +20,7 @@ class MovieRecommender:
         self.rating_model = None
 
     def get_popular_movies(self, n=100, top_100=None):
-        res = self.top_100_data.iloc[:n]['imdbId'].values
-        print('Popular movies: ', res)
-        return res
+        return self.top_100_data.iloc[:n]['imdbId'].values
 
     def process_user_data(self):
         return pd.DataFrame({
@@ -35,7 +33,6 @@ class MovieRecommender:
     def get_movie_id_from_imdbId(self, imdbId):
         """Fetch movie data for a given IMDb ID"""
         movie = self.movies_df[self.movies_df['imdbId'] == imdbId]
-        print(movie)
         if not movie.empty:
             return movie.iloc[0]['movieId']
         return None
@@ -71,13 +68,12 @@ class MovieRecommender:
         # Get movies the user has rated highly (e.g., >= 4 stars)
         user_movies = self.get_user_rated_movies(min_rating=3.8)
         movies_watched = self.movies_watched(self.user_data)
-        print('movies_watched:', movies_watched)
         # For each movie they liked, find similar movies
         similar_movies = {}
         similar = []
         for movie_id, rating in user_movies:
             # Your existing content-based function
-            similar.extend(self.fetch_similar_movies(movie_id, n=10))
+            similar.extend(self.fetch_similar_movies(movie_id, n=30//len(user_movies)))
         # Weight by user's rating for that movie
         for sim_movie, similarity_score in similar:
             if sim_movie in movies_watched:
@@ -89,24 +85,18 @@ class MovieRecommender:
     
 
     def onxx_predict(self, imdbId):
-        print("Predict user rating for a movie using ONNX model")
         movieId = self.get_movie_id_from_imdbId(imdbId)
         movie_id = self.label_encoder.transform(np.array([movieId]))[0]
         user_id = np.array([-1], dtype=np.int64)   # must be numpy, not torch
         movie_id = np.array([movie_id], dtype=np.int64)
-
         inputs = {
             "user_ids": user_id,
             "movie_ids": movie_id
         }
-        print("inputs:", inputs)
-        pred = self.onnx_session.run(["predictions"], inputs)[0]
-        print("Prediction:", pred)
-        return pred
+        return  self.onnx_session.run(["predictions"], inputs)[0]
 
 
-    def get_hybrid_recommendations(self, user_id, alpha=0.7, n=10):
-        print('Loading recommendations...')
+    def get_hybrid_recommendations(self, user_id, alpha=0.3, n=10):
         # 1. Get candidate movies from content-based
         cb_recommendations = self.get_user_recommendations_content_based()
         
@@ -118,7 +108,11 @@ class MovieRecommender:
         # 3. Score all candidates with both methods
         hybrid_scores = []
         for movie_id in candidate_pool:
-            cf_score = self.onxx_predict(movie_id) / 5.0
+            cf_score = None
+            try:
+                cf_score = self.onxx_predict(movie_id) / 5.0
+            except Exception as e:
+                print(f"Error predicting CF score for {movie_id}: {e}")
             cb_score = dict(cb_recommendations).get(movie_id, None)
             if cf_score and cb_score:
                 final_score = alpha * cf_score + (1-alpha) * cb_score

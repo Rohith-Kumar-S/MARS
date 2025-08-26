@@ -8,6 +8,7 @@ import time
 import os
 import pickle
 import onnxruntime as ort
+import random
 
 st.set_page_config(page_title="Movie Recommender", layout="wide")
 
@@ -95,7 +96,6 @@ st.markdown("""
 def fetch_movie(title_id):
     """Fetch movie data from IMDB API with caching"""
     if title_id in st.session_state.movie_cache:
-        # print('Fetching from cache')
         return st.session_state.movie_cache[title_id]
     
     try:
@@ -105,10 +105,8 @@ def fetch_movie(title_id):
             st.session_state.movie_cache[title_id] = movie_data
             return movie_data
         else:
-            # print(f"Error fetching movie {title_id} else: {response.status_code}")
             return None
     except Exception as e:
-        # print(f"Error fetching movie {title_id} exp: {str(e)}")
         st.error(f"Error fetching movie {title_id}: {str(e)}")
         return None
 
@@ -137,9 +135,7 @@ def get_movie_embedding(movie_data, model):
     return embedding
 
 def fetch_similar_movies(movie_index):
-    print("movie_index ",movie_index)
     embedding = st.session_state.embeddings[movie_index]
-    print(embedding)
     results = st.session_state.vector_store.query(
         vector=embedding.tolist(),
         top_k=10
@@ -155,7 +151,7 @@ def fetch_similar_movies(movie_index):
 #         return None
 
 # Display movie card
-def display_movie_card(movie_data, col):
+def display_movie_card(movie_data, col, rec_carousel):
     """Display a movie card with image and title - entire card is clickable"""
     with col:
         # Create a clickable container with all movie info
@@ -203,7 +199,7 @@ def display_movie_card(movie_data, col):
                 # st.markdown('</div>', unsafe_allow_html=True)
         card_clicked = st.button(
                 label="Rate Movie",
-                key=f"card_{movie_data['id']}",
+                key=f"card_{movie_data['id']}" if rec_carousel == "main_carousel" else f"recom_{movie_data['id']}",
                 use_container_width=True,
                 type="secondary",
                 help=f"Click to rate {movie_data['primaryTitle']}"
@@ -247,6 +243,7 @@ def create_carousel(movies, carousel_key, movies_per_view=5):
                     disabled=(current_page == 0),
                     on_click=lambda a=current_index_key, b=max(0, current_page - 1): update_click(a,b),
                     help="Previous movies"):
+            st.session_state.show_rating_dialog = False
             st.rerun()
            
     # Right arrow
@@ -255,6 +252,7 @@ def create_carousel(movies, carousel_key, movies_per_view=5):
                     disabled=(current_page >= total_pages - 1),
                     on_click=lambda a=current_index_key, b=min(total_pages - 1, current_page + 1): update_click(a,b),
                     help="Next movies"):
+            st.session_state.show_rating_dialog = False
             st.rerun()
 
     # # Page indicator
@@ -272,7 +270,7 @@ def create_carousel(movies, carousel_key, movies_per_view=5):
         for i, col in enumerate(movie_cols):
             movie_idx = start_idx + i
             if movie_idx < len(movies):
-                display_movie_card(movies[movie_idx], col)
+                display_movie_card(movies[movie_idx], col, carousel_key)
             else:
                 # Empty column for consistent spacing
                 with col:
@@ -299,7 +297,6 @@ def update_user_data(imdbId):
 def get_movie_id_from_imdbId(imdbId):
     """Fetch movie data for a given IMDb ID"""
     movie = st.session_state.movies_df_cache[st.session_state.movies_df_cache['imdbId'] == imdbId]
-    print(movie)
     if not movie.empty:
         return movie.iloc[0]['movieId']
     return None
@@ -309,14 +306,11 @@ def show_rating_dialog():
     """Show rating dialog for selected movie"""
     if st.session_state.show_rating_dialog and st.session_state.selected_movie:
         movie = st.session_state.selected_movie
-        id = movie['id']
-        st.session_state.show_rating_dialog = False 
-        st.session_state.selected_movie = None
+        id = movie['id'] 
         matches = st.session_state.movies_df_cache.loc[st.session_state.movies_df_cache['imdbId']==id]
         similar_movies = []
         if len(matches)>0:
             similar_movies = fetch_similar_movies(matches.index[0])
-        print(similar_movies)
         
         @st.dialog(f"Rate {movie['primaryTitle']}")
         def rating_dialog():
@@ -406,7 +400,6 @@ def show_rating_dialog():
                 for i, col in enumerate(cols):
                     movie_idx = start_idx + i
                     if movie_idx < len(similar_movies):
-                        print(f"Fetching for: {similar_movies[movie_idx]}")
                         similar_movie = fetch_movie(similar_movies[movie_idx])
                         with col:
                             # Get image
@@ -424,6 +417,7 @@ def show_rating_dialog():
                                 help=f"View details for {similar_movie['primaryTitle']}"
                             ):
                                 # Switch to the new movie
+                                st.session_state.show_rating_dialog = True 
                                 st.session_state.selected_movie = similar_movie
                                 st.session_state.dialog_carousel_index = 0  # Reset carousel
                                 st.rerun()
@@ -443,7 +437,6 @@ def show_rating_dialog():
                                 st.caption(f"⭐ {imdb}/10")
             else:
                 st.info("No similar movies found")
- 
         
         rating_dialog()
         
@@ -489,7 +482,7 @@ def main():
         
     if not st.session_state.data_loaded:
         movies, ratings_df, embeddings, lbl_movie, onnx_session, vector_store = load_data()
-        
+
         st.session_state.movies_df_cache = movies
         st.session_state.ratings_df_cache = ratings_df
         st.session_state.embeddings = embeddings
@@ -497,21 +490,17 @@ def main():
         st.session_state.onnx_session = onnx_session
         st.session_state.vector_store = vector_store
         st.session_state.data_loaded = True
-        print('loaded')
     # Sample movie IDs (you can expand this list)
     if st.session_state.popular_movies is None:
         st.session_state.popular_movies = get_popular_movies(n=20)
     sample_movie_ids = list(st.session_state.popular_movies['imdbId'].astype(str))
-    print(sample_movie_ids)
     
     
     if st.session_state.request_recommendations and len(st.session_state.user_data.keys()) > 0:
         start_time = time.time()
         recommender = MovieRecommender(st.session_state.ratings_df_cache, st.session_state.embeddings, st.session_state.user_data, st.session_state.vector_store, st.session_state.movies_df_cache, st.session_state.lbl_movie, st.session_state.onnx_session)
-        st.session_state.recommended_ids = recommender.get_hybrid_recommendations(st.session_state.user_id, alpha=0.7, n=20)
-        print('recommendations generated: ', st.session_state.recommended_ids)
+        st.session_state.recommended_ids = recommender.get_hybrid_recommendations(st.session_state.user_id, alpha=0.3, n=40)
         st.session_state.request_recommendations = False
-        print(f"Time taken for recommendations: {time.time() - start_time:.2f} seconds")
 
 
     # Main content area
