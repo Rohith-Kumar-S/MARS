@@ -444,12 +444,6 @@ def show_rating_dialog():
 def get_popular_movies(n=100):
     return st.session_state.ratings_df_cache.iloc[:n]
 
-def create_representation(row_idx):
-    # for row_idx in range(len(df)):
-    return f"""
-Title : {row_idx["title"]},
-Genres : {", ".join(row_idx['genres'].split('|'))}"""
-
 @st.cache_resource
 def load_data():
     movies = pd.read_csv(os.path.join(os.getcwd(), 'data','processed_movies.csv'))
@@ -490,10 +484,10 @@ def main():
         st.session_state.onnx_session = onnx_session
         st.session_state.vector_store = vector_store
         st.session_state.data_loaded = True
-    # Sample movie IDs (you can expand this list)
+        
     if st.session_state.popular_movies is None:
-        st.session_state.popular_movies = get_popular_movies(n=20)
-    sample_movie_ids = list(st.session_state.popular_movies['imdbId'].astype(str))
+        st.session_state.popular_movies = get_popular_movies(n=100)
+    top_movies = list(st.session_state.popular_movies['imdbId'].astype(str))
     
     
     if st.session_state.request_recommendations and len(st.session_state.user_data.keys()) > 0:
@@ -525,7 +519,7 @@ def main():
     # Load initial movies
     initial_movies = []
     with st.spinner("Loading movies..."):
-        for imdb_id in sample_movie_ids:
+        for imdb_id in top_movies:
             movie = fetch_movie(imdb_id)
             if movie:
                 initial_movies.append(movie)
@@ -541,7 +535,7 @@ def main():
     st.markdown(
         """
         <div style='text-align: center; color: gray;'>
-            <p>Movie Recommender App | Data from IMDB API | Built with Streamlit</p>
+            <p>Movie Recommender App | Data from Movie Lens & IMDB API | Built with Streamlit</p>
             <p>Use the arrows to navigate through movies and click on any movie to rate it!</p>
         </div>
         """, 
