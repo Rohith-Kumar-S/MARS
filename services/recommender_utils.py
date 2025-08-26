@@ -100,7 +100,7 @@ class MovieRecommender:
         # 1. Get candidate movies from content-based
         cb_recommendations = self.get_user_recommendations_content_based()
         
-        cb_movie_ids = [movie_id for movie_id, _ in cb_recommendations[:50]]
+        cb_movie_ids = [movie_id for movie_id, _ in cb_recommendations[:30]]
         # 2. Get CF predictions for those candidates + popular movies
         candidate_pool = cb_movie_ids 
         candidate_pool = list(set(candidate_pool))  # Remove duplicates
