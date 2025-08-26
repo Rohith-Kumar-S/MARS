@@ -2,5 +2,4 @@ pandas
 requests
 numpy
 streamlit
-pinecone
 onnxruntime
