@@ -4,3 +4,4 @@ numpy
 streamlit
 onnxruntime
 pinecone
+sklearn
