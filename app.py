@@ -2,7 +2,6 @@ import streamlit as st
 import requests
 import pandas as pd
 import numpy as np
-from pinecone import Pinecone, ServerlessSpec
 from services.recommender_utils import MovieRecommender 
 import time
 import os
