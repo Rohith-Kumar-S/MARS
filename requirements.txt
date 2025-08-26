@@ -1,0 +1,6 @@
+pandas
+requests
+numpy
+streamlit
+pinecone-client
+onnxruntime
