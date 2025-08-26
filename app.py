@@ -486,14 +486,14 @@ def main():
         st.session_state.data_loaded = True
         
     if st.session_state.popular_movies is None:
-        st.session_state.popular_movies = get_popular_movies(n=100)
+        st.session_state.popular_movies = get_popular_movies(n=30)
     top_movies = list(st.session_state.popular_movies['imdbId'].astype(str))
     
     
     if st.session_state.request_recommendations and len(st.session_state.user_data.keys()) > 0:
         start_time = time.time()
         recommender = MovieRecommender(st.session_state.ratings_df_cache, st.session_state.embeddings, st.session_state.user_data, st.session_state.vector_store, st.session_state.movies_df_cache, st.session_state.lbl_movie, st.session_state.onnx_session)
-        st.session_state.recommended_ids = recommender.get_hybrid_recommendations(st.session_state.user_id, alpha=0.3, n=40)
+        st.session_state.recommended_ids = recommender.get_hybrid_recommendations(st.session_state.user_id, alpha=0.3, n=30)
         st.session_state.request_recommendations = False
 
 
