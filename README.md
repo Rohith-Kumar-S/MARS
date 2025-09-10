@@ -86,7 +86,7 @@ Navigate to `http://localhost:8501` in your browser.
 - **Storage Reduction**: 91.8%
 - **Similarity Search**: <100ms for 87,000 vectors
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 MARS/
