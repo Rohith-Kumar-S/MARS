@@ -147,23 +147,6 @@ Architecture Overview:
 - Similarity metric: Cosine similarity
 - Vector database: Pinecone (87,585 vectors)
 ```
-
-### Hybrid Strategy
-```python
-if user_rating_count == 0:
-    return popular_movies()
-else:
-    return hybrid_recommendations(
-        cf_weight=0.3,
-        cb_weight=0.7
-    )
-```
-
-## Future Improvements
-- Imporve model complexity
-- Add support for music and book recommendations
-- Recommendations based on user activity
-
 ## Acknowledgments
 
 - MovieLens dataset provided by GroupLens Research
