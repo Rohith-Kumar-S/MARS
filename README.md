@@ -43,7 +43,7 @@ This project implements a hybrid recommendation system that solves the cold star
           └─────────────────┘    └──────────────────┘
 ```
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Deep Learning**: PyTorch with CUDA acceleration
 - **Embeddings**: Ollama2 for semantic movie representations
